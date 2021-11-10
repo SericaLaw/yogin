@@ -14,6 +14,7 @@ var notFoundHandler = func(c *Context) {
 }
 
 type Engine struct {
+	RouterGroup
 	methodTrees map[string]methodTree
 	contextPool	sync.Pool
 }
@@ -39,7 +40,7 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	c.reset(w, req)
 
 	if _, ok := engine.methodTrees[method]; !ok {
-		c.handlers = HandlersChain{notFoundHandler}
+		c.handlers = engine.RouterGroup.combineHandlers(HandlersChain{notFoundHandler})
 		c.Next()
 		return
 	}
@@ -47,7 +48,7 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	value := tree.getRoute(path)
 	if value.handlers == nil {
-		c.handlers = HandlersChain{notFoundHandler}
+		c.handlers = engine.RouterGroup.combineHandlers(HandlersChain{notFoundHandler})
 		c.Next()
 		return
 	}
@@ -70,8 +71,14 @@ func (engine *Engine) Run(addr string) (err error) {
 
 func New() *Engine {
 	engine := &Engine{
+		RouterGroup: RouterGroup{
+			Handlers: nil,
+			basePath: "/",
+			root:     true,
+		},
 		methodTrees: make(map[string]methodTree),
 	}
+	engine.RouterGroup.engine = engine
 	engine.contextPool.New = func() interface{} {
 		return engine.allocateContext()
 	}

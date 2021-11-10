@@ -124,7 +124,7 @@ func (c *Context) Header(key, value string) {
 // It should be set only once before sending out response.
 func (c *Context) Status(code int) {
 	if code > 0 && c.statusCode != 0 && c.statusCode != code {
-		c.Error(fmt.Errorf("[WARNING] Headers were already written. Wanted to override status code %d with %d, rejected", c.statusCode, code))
+		c.Error(fmt.Errorf("%s[WARNING]%s Headers were already written. Wanted to override status code %d with %d, rejected", yellow, reset, c.statusCode, code))
 		return
 	}
 	c.statusCode = code
@@ -151,7 +151,6 @@ var (
 	htmlContentType 	= []string{"text/html; charset=utf-8"}
 	plainContentType 	= []string{"text/plain; charset=utf-8"}
 )
-
 
 func (c *Context) WithString(format string, values ...interface{}) *Context {
 	writeContentType(c.Writer, plainContentType)
