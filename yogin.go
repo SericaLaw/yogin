@@ -84,3 +84,9 @@ func New() *Engine {
 	}
 	return engine
 }
+
+func Default() *Engine {
+	engine := New()
+	engine.Use(Logger(), Recovery())
+	return engine
+}
