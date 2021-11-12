@@ -184,6 +184,31 @@ func (c *Context) JSON(code int, obj interface{}) {
 	c.WithJSON(obj)
 }
 
+func (c *Context) WithHTML(name string, obj interface{}) *Context {
+	writeContentType(c.Writer, htmlContentType)
+	var b strings.Builder
+	if err := c.engine.htmlTemplates.ExecuteTemplate(&b, name, obj); err != nil {
+		panic(err)
+	}
+	data := []byte(b.String())
+	wc, _ := c.Writer.Write(data)
+	c.bodySize += wc
+	return c
+}
+
+// HTML renders the HTTP template specified by its file name.
+// It also updates the HTTP code and sets the Content-Type as "text/html".
+// See http://golang.org/doc/articles/wiki/
+func (c *Context) HTML(code int, name string, obj interface{}) {
+	c.Status(code)
+	c.WithHTML(name, obj)
+}
+
+// File writes the specified file into the body stream in an efficient way.
+func (c *Context) File(filepath string) {
+	http.ServeFile(c.Writer, c.Request, filepath)
+}
+
 func writeContentType(w http.ResponseWriter, value []string) {
 	header := w.Header()
 	if val := header["Content-Type"]; len(val) == 0 {

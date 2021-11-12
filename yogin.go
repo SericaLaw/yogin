@@ -1,6 +1,7 @@
 package yogin
 
 import (
+	"html/template"
 	"net/http"
 	"sync"
 )
@@ -17,6 +18,9 @@ type Engine struct {
 	RouterGroup
 	methodTrees map[string]methodTree
 	contextPool	sync.Pool
+
+	htmlTemplates *template.Template // for html render
+	FuncMap       template.FuncMap   // for html render
 }
 
 func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
@@ -89,4 +93,13 @@ func Default() *Engine {
 	engine := New()
 	engine.Use(Logger(), Recovery())
 	return engine
+}
+
+func (engine *Engine) LoadHTMLGlob(pattern string) {
+	engine.htmlTemplates = template.Must(template.New("").Funcs(engine.FuncMap).ParseGlob(pattern))
+}
+
+// SetFuncMap sets the FuncMap used for template.FuncMap.
+func (engine *Engine) SetFuncMap(funcMap template.FuncMap) {
+	engine.FuncMap = funcMap
 }

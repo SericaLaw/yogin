@@ -3,6 +3,7 @@ package yogin
 import (
 	"net/http"
 	"path"
+	"strings"
 )
 
 type RouterGroup struct {
@@ -75,4 +76,53 @@ func (group *RouterGroup) combineHandlers(handlers HandlersChain) HandlersChain 
 func (group *RouterGroup) calculateAbsolutePath(relativePath string) string {
 	assert1(relativePath != "", "new group with empty relative path")
 	return path.Join(group.basePath, relativePath)
+}
+
+// StaticFile registers a single route in order to serve a single file of the local filesystem.
+// router.StaticFile("favicon.ico", "./resources/favicon.ico")
+func (group *RouterGroup) StaticFile(relativePath, filepath string) {
+	if strings.Contains(relativePath, ":") || strings.Contains(relativePath, "*") {
+		panic("URL parameters can not be used when serving a static file")
+	}
+	handler := func(c *Context) {
+		c.File(filepath)
+	}
+	group.GET(relativePath, handler)
+	group.HEAD(relativePath, handler)
+}
+
+// Static serves files from the given file system root.
+// Internally a http.FileServer is used, therefore http.NotFound is used instead
+// of the Router's NotFound handler.
+// To use the operating system's file system implementation,
+// use :
+//     router.Static("/static", "/var/www")
+func (group *RouterGroup) Static(relativePath, root string) {
+	if strings.Contains(relativePath, ":") || strings.Contains(relativePath, "*") {
+		panic("URL parameters can not be used when serving a static folder")
+	}
+	handler := group.createStaticHandler(relativePath, http.Dir(root))
+	urlPattern := path.Join(relativePath, "/*filepath")
+
+	// Register GET and HEAD handlers
+	group.GET(urlPattern, handler)
+	group.HEAD(urlPattern, handler)
+}
+
+func (group *RouterGroup) createStaticHandler(relativePath string, fs http.FileSystem) HandlerFunc {
+	absolutePath := group.calculateAbsolutePath(relativePath)
+	fileServer := http.StripPrefix(absolutePath, http.FileServer(fs))
+
+	return func(c *Context) {
+		file := c.Param("filepath")
+		// Check if file exists and/or if we have permission to access it
+		f, err := fs.Open(file)
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		f.Close()
+
+		fileServer.ServeHTTP(c.Writer, c.Request)
+	}
 }
